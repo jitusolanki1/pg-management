@@ -9,7 +9,7 @@ export default ({ mode }) => {
     server: {
       proxy: {
         "/api": {
-          target: env.VITE_BACKEND_URL || "https://pg-management-zhjg.onrender.com",
+          target: env.VITE_BACKEND_URL,
           changeOrigin: true,
         },
       },

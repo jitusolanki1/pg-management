@@ -1,4 +1,5 @@
-const API_BASE_URL = "/api"
+// const API_BASE_URL = "/api"
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem("token")
