@@ -67,12 +67,12 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-center text-gray-400 text-sm mt-4">
+        {/* <p className="text-center text-gray-400 text-sm mt-4">
           First time?{" "}
           <Link to="/register" className="text-accent hover:underline">
             Register here
           </Link>
-        </p>
+        </p> */}
       </div>
     </div>
   )
