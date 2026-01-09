@@ -25,7 +25,7 @@ import { useAuth } from "../../context/AuthContext"
 // CONFIGURATION
 // ============================================
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+const API_BASE = import.meta.env.VITE_API_URL + "/api"
 const IS_DEV = import.meta.env.DEV
 const IS_PROD = !IS_DEV
 
@@ -718,8 +718,8 @@ function StepIndicator({ step, label, active, complete }) {
     return (
         <div className="flex flex-col items-center">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${complete ? "bg-indigo-500 text-white" :
-                    active ? "bg-indigo-500/20 text-indigo-400 ring-2 ring-indigo-500" :
-                        "bg-slate-700 text-slate-400"
+                active ? "bg-indigo-500/20 text-indigo-400 ring-2 ring-indigo-500" :
+                    "bg-slate-700 text-slate-400"
                 }`}>
                 {complete ? (
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

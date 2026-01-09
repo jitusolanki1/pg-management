@@ -12,12 +12,12 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/
 
 // Firebase config - Replace with your config
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "your-api-key",
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "your-app.firebaseapp.com",
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "your-project-id",
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "your-app.appspot.com",
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789:web:abc123"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
 }
 
 // Initialize Firebase
@@ -33,7 +33,7 @@ try {
 }
 
 // API endpoint for lead submission
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api"// Room preferences
+const API_BASE = import.meta.env.VITE_API_URL + "/api"
 const roomPreferences = [
     { value: "single", label: "Single Sharing", price: "₹8,000/month" },
     { value: "double", label: "Double Sharing", price: "₹6,000/month" },

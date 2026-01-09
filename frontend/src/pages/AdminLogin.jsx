@@ -14,9 +14,9 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { signInWithGoogle } from "../config/firebase"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "js7073829447@gmail.com"
-const ADMIN_PHONE = import.meta.env.VITE_ADMIN_PHONE || "+917073829447"
+const API_URL = import.meta.env.VITE_API_URL + "/api"
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL
+const ADMIN_PHONE = import.meta.env.VITE_ADMIN_PHONE
 const IS_DEV = import.meta.env.DEV
 
 export default function AdminLogin() {
