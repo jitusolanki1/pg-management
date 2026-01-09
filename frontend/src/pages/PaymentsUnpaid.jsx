@@ -1,207 +1,175 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import api from "../utils/api"
-import PaymentForm from "../components/PaymentForm"
+import { useState, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
+import { useUnpaidPayments, useUpdatePayment } from "../hooks"
+import { exportToCSV } from "../utils/export"
+import { Button } from "../components/ui/Button"
+import { Card } from "../components/ui/Card"
+import { Badge } from "../components/ui/Badge"
+import { Pagination } from "../components/ui/Pagination"
+import { SkeletonPaymentRow } from "../components/ui/Skeleton"
 
 export default function PaymentsUnpaid() {
-  const [payments, setPayments] = useState([])
-  const [tenants, setTenants] = useState([])
-  const [selectedPayment, setSelectedPayment] = useState(null)
-  const [showPaymentForm, setShowPaymentForm] = useState(false)
-  const [selectedTenant, setSelectedTenant] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const navigate = useNavigate()
 
-  useEffect(() => {
-    fetchData()
-  }, [])
+  // UI state
+  const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      const [paymentsRes, tenantsRes] = await Promise.all([api.get("/payments/unpaid"), api.get("/tenants")])
-      setPayments(paymentsRes.data)
-      setTenants(tenantsRes.data)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Data Layer - React Query hooks
+  const { data: payments = [], isLoading: paymentsLoading, refetch } = useUnpaidPayments()
 
-  const handleCreatePayment = async (paymentData) => {
-    try {
-      await api.post("/payments", paymentData)
-      setShowPaymentForm(false)
-      setSelectedTenant(null)
-      fetchData()
-    } catch (err) {
-      throw err
-    }
-  }
+  // Mutations
+  const updatePayment = useUpdatePayment()
 
-  const handleUpdatePayment = async (id, updates) => {
-    try {
-      await api.put(`/payments/${id}`, updates)
-      fetchData()
-    } catch (err) {
-      setError(err.message)
-    }
-  }
+  // Filter payments
+  const filteredPayments = useMemo(() =>
+    payments.filter((payment) =>
+      payment.tenant?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [payments, searchTerm])
 
-  const isOverdue = (dueDate) => {
-    return new Date(dueDate) < new Date()
-  }
+  // Pagination
+  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage)
+  const paginatedPayments = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredPayments.slice(start, start + itemsPerPage)
+  }, [filteredPayments, currentPage, itemsPerPage])
 
-  if (loading) {
-    return <div className="text-center py-12 text-gray-300">Loading...</div>
+  // Reset page on search
+  useMemo(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
+
+  // Handlers
+  const handleExport = () => {
+    const dataToExport = filteredPayments.map(p => ({
+      Tenant: p.tenant?.name || 'Unknown',
+      Room: p.tenant?.bed?.room?.roomNumber || 'N/A',
+      DueAmount: p.amount,
+      NextDueDate: p.nextDueDate ? new Date(p.nextDueDate).toLocaleDateString() : 'N/A',
+      Status: 'Pending'
+    }))
+    exportToCSV(dataToExport, `Pending_Dues_${new Date().toISOString().split('T')[0]}`)
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">Unpaid Payments</h1>
-        <button
-          onClick={() => setShowPaymentForm(!showPaymentForm)}
-          className="px-4 py-2 bg-accent text-white rounded-md hover:bg-blue-600"
-        >
-          {showPaymentForm ? "Cancel" : "Add Payment"}
-        </button>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-text-main tracking-tight">Pending Payments</h1>
+          <p className="text-text-muted mt-1">Manage dues and record new payments</p>
+        </div>
+        <Button onClick={() => navigate("/admin/payments/add")}>
+          + Record Payment
+        </Button>
       </div>
 
-      {error && (
-        <div className="bg-danger/20 border border-danger text-danger px-4 py-3 rounded-md">
-          <p>{error}</p>
-          <button onClick={() => setError("")} className="text-sm underline mt-1">
-            Dismiss
-          </button>
+      {/* Controls Bar */}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <div className="relative w-full md:w-96">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search tenant..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
         </div>
-      )}
-
-      {showPaymentForm && (
-        <div className="bg-secondary p-6 rounded-lg border border-border space-y-4">
-          <h2 className="text-xl font-bold text-white">Record New Payment</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Select Tenant</label>
-            <select
-              value={selectedTenant?._id || ""}
-              onChange={(e) => setSelectedTenant(tenants.find((t) => t._id === e.target.value))}
-              className="w-full px-3 py-2 bg-primary border border-border rounded-md text-white"
-            >
-              <option value="">Choose a tenant</option>
-              {tenants.map((tenant) => (
-                <option key={tenant._id} value={tenant._id}>
-                  {tenant.name} - {tenant.bed?.bedNumber} (Rent: ₹{tenant.monthlyRent})
-                </option>
-              ))}
-            </select>
-          </div>
-          {selectedTenant && <PaymentForm tenant={selectedTenant} onSubmit={handleCreatePayment} />}
-        </div>
-      )}
-
-      {payments.length === 0 ? (
-        <div className="bg-secondary p-12 rounded-lg border border-border text-center text-gray-400">
-          No pending or overdue payments. All tenants are up to date!
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {payments.map((payment) => (
-            <div
-              key={payment._id}
-              className={`bg-secondary p-6 rounded-lg border-2 ${
-                payment.status === "OVERDUE" ? "border-danger" : "border-border"
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-white">{payment.tenant?.name}</h3>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        payment.status === "OVERDUE" ? "bg-danger/20 text-danger" : "bg-warning/20 text-warning"
-                      }`}
-                    >
-                      {payment.status}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-400">Bed</p>
-                      <p className="text-white font-medium">{payment.tenant?.bed?.bedNumber}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">Payment For</p>
-                      <p className="text-white font-medium">{payment.paymentFor}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">Amount Paid</p>
-                      <p className="text-success font-bold">₹{payment.amount}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">Remaining Due</p>
-                      <p className="text-danger font-bold">₹{payment.remainingDue}</p>
-                    </div>
-                  </div>
-                  {payment.nextDueDate && (
-                    <div className="mt-3 text-sm">
-                      <p className="text-gray-400">Next Due Date</p>
-                      <p className={`font-medium ${isOverdue(payment.nextDueDate) ? "text-danger" : "text-white"}`}>
-                        {new Date(payment.nextDueDate).toLocaleDateString()}
-                        {isOverdue(payment.nextDueDate) && " (Overdue)"}
-                      </p>
-                    </div>
-                  )}
-                  {payment.notes && (
-                    <div className="mt-3 text-sm">
-                      <p className="text-gray-400">Notes</p>
-                      <p className="text-white">{payment.notes}</p>
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <a
-                    href={`tel:${payment.tenant?.phone}`}
-                    className="px-4 py-2 bg-accent text-white rounded-md hover:bg-blue-600 text-center text-sm"
-                  >
-                    Call Tenant
-                  </a>
-                  <button
-                    onClick={() =>
-                      handleUpdatePayment(payment._id, {
-                        status: "PAID",
-                        remainingDue: 0,
-                      })
-                    }
-                    className="px-4 py-2 bg-success text-white rounded-md hover:bg-green-600 text-sm"
-                  >
-                    Mark Paid
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="bg-secondary p-6 rounded-lg border border-border">
-        <h3 className="text-lg font-bold text-white mb-4">Pending Dues Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-primary p-4 rounded-md">
-            <p className="text-sm text-gray-400">Total Pending</p>
-            <p className="text-2xl font-bold text-danger">₹{payments.reduce((sum, p) => sum + p.remainingDue, 0)}</p>
-          </div>
-          <div className="bg-primary p-4 rounded-md">
-            <p className="text-sm text-gray-400">Overdue Payments</p>
-            <p className="text-2xl font-bold text-danger">{payments.filter((p) => p.status === "OVERDUE").length}</p>
-          </div>
-          <div className="bg-primary p-4 rounded-md">
-            <p className="text-sm text-gray-400">Pending Payments</p>
-            <p className="text-2xl font-bold text-warning">{payments.filter((p) => p.status === "PENDING").length}</p>
-          </div>
+        <div className="flex gap-3 w-full md:w-auto">
+          <Button variant="secondary" onClick={() => refetch()} className="flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </Button>
+          <Button variant="secondary" onClick={handleExport} className="flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export
+          </Button>
         </div>
       </div>
+
+      <Card noPadding className="overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-text-main">Unpaid Dues</h2>
+            <Badge variant="danger">{paymentsLoading ? "..." : filteredPayments.length}</Badge>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4 font-semibold text-text-muted">Tenant</th>
+                <th className="px-6 py-4 font-semibold text-text-muted">Due Amount</th>
+                <th className="px-6 py-4 font-semibold text-text-muted">Next Due Date</th>
+                <th className="px-6 py-4 font-semibold text-text-muted">Status</th>
+                <th className="px-6 py-4 font-semibold text-text-muted text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {paymentsLoading ? (
+                Array.from({ length: itemsPerPage }).map((_, i) => (
+                  <SkeletonPaymentRow key={i} />
+                ))
+              ) : paginatedPayments.length > 0 ? (
+                paginatedPayments.map((payment) => (
+                  <tr key={payment._id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-text-main">{payment.tenant?.name}</div>
+                      <div className="text-xs text-text-muted">Room {payment.tenant?.bed?.room?.roomNumber || "-"}</div>
+                    </td>
+                    <td className="px-6 py-4 font-bold text-danger">₹{payment.amount}</td>
+                    <td className="px-6 py-4 text-text-main">
+                      {payment.nextDueDate ? new Date(payment.nextDueDate).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="danger">Pending</Badge>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/payments/add?tenant=${payment.tenant?._id}`)}
+                      >
+                        Clear Due
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="px-6 py-12 text-center text-text-muted">
+                    {searchTerm ? "No payments match your search" : "No pending dues! 🎉"}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {filteredPayments.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredPayments.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(val) => {
+              setItemsPerPage(val)
+              setCurrentPage(1)
+            }}
+          />
+        )}
+      </Card>
     </div>
   )
 }
