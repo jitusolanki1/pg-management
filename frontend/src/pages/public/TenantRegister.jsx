@@ -33,7 +33,10 @@ try {
 }
 
 // API endpoint for lead submission
-const API_BASE = import.meta.env.VITE_API_URL + "/api"
+// Build API base safely: prefer VITE_API_URL, fall back to VITE_BACKEND_URL, else use relative `/api`
+const RAW_API = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || ""
+const CLEAN_API = RAW_API.replace(/\/$/, "").replace(/\/api$/, "")
+const API_BASE = (CLEAN_API ? CLEAN_API : "") + "/api"
 const roomPreferences = [
     { value: "single", label: "Single Sharing", price: "₹8,000/month" },
     { value: "double", label: "Double Sharing", price: "₹6,000/month" },

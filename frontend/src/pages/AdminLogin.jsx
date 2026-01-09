@@ -14,7 +14,10 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { signInWithGoogle } from "../config/firebase"
 
-const API_URL = import.meta.env.VITE_API_URL + "/api"
+// Build API base safely: prefer VITE_API_URL, fall back to VITE_BACKEND_URL, else use relative `/api`
+const RAW_API = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || ""
+const CLEAN_API = RAW_API.replace(/\/$/, "").replace(/\/api$/, "")
+const API_URL = (CLEAN_API ? CLEAN_API : "") + "/api"
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL
 const ADMIN_PHONE = import.meta.env.VITE_ADMIN_PHONE
 const IS_DEV = import.meta.env.DEV
