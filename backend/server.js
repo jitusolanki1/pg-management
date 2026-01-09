@@ -51,14 +51,36 @@ app.use(
   })
 );
 
-const allowedOrigins = process.env.FRONTEND_URL;
+// FRONTEND_URL may be a single host or a comma/semicolon separated list.
+// Be defensive: if the env var is missing, avoid calling `.includes` on undefined.
+const rawFrontend = process.env.FRONTEND_URL || process.env.FRONTEND_URLS || "";
+const allowedOrigins = rawFrontend
+  ? rawFrontend
+      .split(/[;,\s]+/)
+      .map((s) => s.replace(/\/$/, "").trim())
+      .filter(Boolean)
+  : [];
 
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Allow same-origin requests (e.g., server-to-server, curl)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      // If no allowed origins configured, permit during development but warn
+      if (allowedOrigins.length === 0) {
+        console.warn(
+          "⚠️ FRONTEND_URL not configured — allowing all CORS origins (development)."
+        );
+        return callback(null, true);
+      }
+
+      // Exact match or hostname substring match (covers ports, subpaths)
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.some((a) => origin.includes(a));
+
+      if (isAllowed) {
         callback(null, true);
       } else {
         console.warn(`⚠️ Blocked CORS request from: ${origin}`);
